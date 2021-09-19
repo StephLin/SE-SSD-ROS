@@ -7,3 +7,6 @@
 [submodule "third-party/spconv"]
 	path = third-party/spconv
 	url = https://github.com/poodarchu/spconv
+[submodule "third-party/ifp-sample"]
+	path = third-party/ifp-sample
+	url = https://github.com/jackd/ifp-sample.git
