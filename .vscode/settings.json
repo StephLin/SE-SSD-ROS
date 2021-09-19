@@ -6,5 +6,6 @@
     }
   },
   "python.formatting.provider": "yapf",
-  "cmake.configureOnOpen": false
+  "cmake.configureOnOpen": false,
+  "autoDocstring.docstringFormat": "numpy"
 }

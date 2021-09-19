@@ -1,0 +1,12 @@
+[submodule "third-party/apex"]
+	path = third-party/apex
+	url = https://github.com/NVIDIA/apex
+[submodule "third-party/ros_numpy"]
+	path = third-party/ros_numpy
+	url = https://github.com/eric-wieser/ros_numpy.git
+[submodule "third-party/spconv"]
+	path = third-party/spconv
+	url = https://github.com/poodarchu/spconv
+[submodule "third-party/ifp-sample"]
+	path = third-party/ifp-sample
+	url = https://github.com/jackd/ifp-sample.git
