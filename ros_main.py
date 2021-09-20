@@ -59,7 +59,8 @@ class Callback:
                  cfg,
                  device='cuda',
                  distributed=False,
-                 range_detection=False):
+                 range_detection=False,
+                 step_size=1):
         self.model = model
         if distributed:
             self.model = self.model.module
@@ -76,11 +77,12 @@ class Callback:
 
         # step
         self.step = 1
+        self.step_size = step_size
 
     def __call__(self, cloud_msg: PointCloud2):
         data = self._convert_cloud_to_tensor(cloud_msg)
 
-        self.step = (self.step + 1) % 2
+        self.step = (self.step + 1) % self.step_size
         if self.step != 0:
             return
 
@@ -229,6 +231,7 @@ def parse_args():
                         default='/kitti/velo/pointcloud',
                         help='ros topic for point cloud')
     parser.add_argument('--range_detection', type=bool, default=False)
+    parser.add_argument('--step_size', type=int, default=1)
     args = parser.parse_args()
     if "LOCAL_RANK" not in os.environ:
         os.environ["LOCAL_RANK"] = str(args.local_rank)
@@ -245,6 +248,7 @@ def print_info(args):
     table.add_row('Model:', 'SE-SSD')
     table.add_row('Checkpoint:', args.checkpoint)
     table.add_row('Enabled range detection:', str(args.range_detection))
+    table.add_row('Step size:', str(args.step_size))
     table.add_row('Subscribed topic (PointCloud2):', args.subscribed_topic)
     table.add_row('Published topic (BoundingBoxArray):',
                   Callback.DETECTION_PUBLISH_TOPIC)
@@ -304,7 +308,7 @@ def main():
 
     with console.status('[bold green]Initializing ROS wrapper ...'):
         callback = Callback(model, cfg, 'cuda', distributed,
-                            args.range_detection)
+                            args.range_detection, args.step_size)
 
         rospy.Subscriber(args.subscribed_topic, PointCloud2, callback)
         console.log('Initialized ROS wrapper successfully.')
