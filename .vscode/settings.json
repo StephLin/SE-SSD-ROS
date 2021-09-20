@@ -2,10 +2,13 @@
   "[python]": {
     "editor.formatOnSave": true,
     "editor.codeActionsOnSave": {
-      "source.organizeImports": false
-    }
+      "source.organizeImports": true
+    },
+    "editor.rulers": [100]
   },
   "python.formatting.provider": "yapf",
   "cmake.configureOnOpen": false,
-  "autoDocstring.docstringFormat": "numpy"
+  "autoDocstring.docstringFormat": "numpy",
+  "python.linting.enabled": true,
+  "python.linting.flake8Enabled": true
 }

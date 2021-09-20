@@ -1,42 +1,36 @@
 #!/usr/bin/env python3
-import contextlib as ctx
-
 import argparse
+import contextlib as ctx
 import os
 
-from rich.align import Align
-from rich import box
-from rich.console import Console
-from rich.table import Table
-from rich.panel import Panel
+from rich import box as rich_box
 from rich import traceback
+from rich.align import Align
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 console = Console()
 traceback.install()
 
 with console.status('[bold green]Importing core packages ...'):
     import numpy as np
-    from scipy.spatial.transform.rotation import Rotation as R
     import torch
+    from scipy.spatial.transform.rotation import Rotation as R
+
     from det3d import torchie
     with ctx.redirect_stdout(None):
         from det3d.models import build_detector
-    from det3d.torchie.apis import init_dist
-    from det3d.torchie.parallel import MegDataParallel, MegDistributedDataParallel
-    from det3d.torchie.trainer import get_dist_info, load_checkpoint
-    from det3d.torchie.trainer.trainer import example_to_device
-    from det3d.datasets.pipelines import (
-        Preprocess,
-        Voxelization,
-        AssignTarget,
-        Reformat,
-    )
-    from det3d.torchie.parallel import collate, collate_kitti
-
-    import rospy
     import ros_numpy
-    from sensor_msgs.msg import PointCloud2
+    import rospy
     from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
+    from sensor_msgs.msg import PointCloud2
+
+    from det3d.datasets.pipelines import AssignTarget, Preprocess, Reformat, Voxelization
+    from det3d.torchie.apis import init_dist
+    from det3d.torchie.parallel import MegDataParallel, collate_kitti
+    from det3d.torchie.trainer import load_checkpoint
+    from det3d.torchie.trainer.trainer import example_to_device
 
     console.log('Imported core packages successfully.')
 
@@ -80,8 +74,15 @@ class Callback:
         self.assign_target = AssignTarget(cfg=cfg.assigner)
         self.reformat = Reformat()
 
+        # step
+        self.step = 1
+
     def __call__(self, cloud_msg: PointCloud2):
         data = self._convert_cloud_to_tensor(cloud_msg)
+
+        self.step = (self.step + 1) % 2
+        if self.step != 0:
+            return
 
         with torch.no_grad():
             outputs = self.model(data, return_loss=False, rescale=True)
@@ -121,6 +122,8 @@ class Callback:
 
                 detection_msg.boxes.append(detection)
                 back_detection_msg.boxes.append(detection)
+
+        console.print('Boxes: %d' % len(detection_msg.boxes))
 
         self.cloud_pub.publish(cloud_msg)
         self.detection_pub.publish(detection_msg)
@@ -233,7 +236,7 @@ def parse_args():
 
 
 def print_info(args):
-    table = Table(show_header=False, show_edge=True, box=box.SIMPLE)
+    table = Table(show_header=False, show_edge=True, box=rich_box.SIMPLE)
     table.add_column('key', justify='right', min_width=36)
     table.add_column('value', justify='left', style='bold green', min_width=36)
 
@@ -289,7 +292,8 @@ def main():
                                      checkpoint_path,
                                      map_location="cpu")
 
-        # old versions did not save class info in checkpoints, this workaround is for backward compatibility
+        # old versions did not save class info in checkpoints, this workaround is for backward
+        # compatibility
         if "CLASSES" in checkpoint["meta"]:
             model.CLASSES = checkpoint["meta"]["CLASSES"]
         else:
@@ -299,7 +303,8 @@ def main():
         console.log('Loaded configuration successfully.')
 
     with console.status('[bold green]Initializing ROS wrapper ...'):
-        callback = Callback(model, cfg, 'cuda', False, args.range_detection)
+        callback = Callback(model, cfg, 'cuda', distributed,
+                            args.range_detection)
 
         rospy.Subscriber(args.subscribed_topic, PointCloud2, callback)
         console.log('Initialized ROS wrapper successfully.')
