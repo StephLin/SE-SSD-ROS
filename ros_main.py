@@ -2,6 +2,7 @@
 import argparse
 import contextlib as ctx
 import os
+import time
 
 from rich import box as rich_box
 from rich import traceback
@@ -60,7 +61,8 @@ class Callback:
                  device='cuda',
                  distributed=False,
                  range_detection=False,
-                 step_size=1):
+                 step_size=1,
+                 verbose=False):
         self.model = model
         if distributed:
             self.model = self.model.module
@@ -79,12 +81,21 @@ class Callback:
         self.step = 1
         self.step_size = step_size
 
-    def __call__(self, cloud_msg: PointCloud2):
-        data = self._convert_cloud_to_tensor(cloud_msg)
+        # logging
+        self.verbose = verbose
 
+    def __call__(self, cloud_msg: PointCloud2):
         self.step = (self.step + 1) % self.step_size
         if self.step != 0:
             return
+
+        timer_start = time.perf_counter()
+        cloud, data = self._convert_cloud_to_tensor(cloud_msg)
+
+        if self.verbose:
+            text = 'Received point cloud: %d points'
+            text = text % cloud.shape[0]
+            console.log('[bright_black]%s' % text)
 
         with torch.no_grad():
             outputs = self.model(data, return_loss=False, rescale=True)
@@ -96,6 +107,7 @@ class Callback:
                 back_boxes = outputs[1]['box3d_lidar'].detach().cpu().numpy()
                 back_scores = outputs[1]['scores'].detach().cpu().numpy()
                 back_labels = outputs[1]['label_preds'].detach().cpu().numpy()
+        timer_end = time.perf_counter()
 
         detection_msg = BoundingBoxArray()
         detection_msg.header = cloud_msg.header
@@ -125,7 +137,10 @@ class Callback:
                 detection_msg.boxes.append(detection)
                 back_detection_msg.boxes.append(detection)
 
-        console.print('Boxes: %d' % len(detection_msg.boxes))
+        if self.verbose:
+            text = 'Computational time: %.3f; Number of detections: %d'
+            text = text % (timer_end - timer_start, len(detection_msg.boxes))
+            console.log('[bold green]%s' % text)
 
         self.cloud_pub.publish(cloud_msg)
         self.detection_pub.publish(detection_msg)
@@ -185,7 +200,7 @@ class Callback:
         collated_data = example_to_device(collated_data,
                                           torch.device(self.device))
 
-        return collated_data
+        return cloud, collated_data
 
     def _convert_model_output_to_jsk_bounding_box(self, box, score, label,
                                                   header):
@@ -232,6 +247,7 @@ def parse_args():
                         help='ros topic for point cloud')
     parser.add_argument('--range_detection', action='store_true')
     parser.add_argument('--step_size', type=int, default=1)
+    parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
     if "LOCAL_RANK" not in os.environ:
         os.environ["LOCAL_RANK"] = str(args.local_rank)
@@ -249,6 +265,7 @@ def print_info(args):
     table.add_row('Checkpoint:', args.checkpoint)
     table.add_row('Enabled range detection:', str(args.range_detection))
     table.add_row('Step size:', str(args.step_size))
+    table.add_row('Verbose:', str(args.verbose))
     table.add_row('Subscribed topic (PointCloud2):', args.subscribed_topic)
     table.add_row('Published topic (BoundingBoxArray):',
                   Callback.DETECTION_PUBLISH_TOPIC)
@@ -308,7 +325,7 @@ def main():
 
     with console.status('[bold green]Initializing ROS wrapper ...'):
         callback = Callback(model, cfg, 'cuda', distributed,
-                            args.range_detection, args.step_size)
+                            args.range_detection, args.step_size, args.verbose)
 
         rospy.Subscriber(args.subscribed_topic, PointCloud2, callback)
         console.log('Initialized ROS wrapper successfully.')
