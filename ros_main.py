@@ -230,7 +230,7 @@ def parse_args():
     parser.add_argument('--subscribed_topic',
                         default='/kitti/velo/pointcloud',
                         help='ros topic for point cloud')
-    parser.add_argument('--range_detection', type=bool, default=False)
+    parser.add_argument('--range_detection', action='store_true')
     parser.add_argument('--step_size', type=int, default=1)
     args = parser.parse_args()
     if "LOCAL_RANK" not in os.environ:
