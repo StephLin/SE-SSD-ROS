@@ -1,27 +1,28 @@
 import logging
-from collections import defaultdict
-from enum import Enum
-import matplotlib.pyplot as plt
 import os
 import pickle
+import time
+from collections import defaultdict
+from enum import Enum
+
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from det3d.core.bbox import box_torch_ops
+from torch import nn
+from torch.nn import functional as F
+from torch.nn.modules.batchnorm import _BatchNorm
+
+from det3d.core.bbox import box_np_ops, box_torch_ops
+from det3d.core.iou3d import iou3d_utils
+from det3d.core.sampler import preprocess as prep
 from det3d.models.builder import build_loss
 from det3d.models.losses import metrics
 from det3d.torchie.cnn import constant_init, kaiming_init
 from det3d.torchie.trainer import load_checkpoint
-from torch import nn
-from torch.nn import functional as F
-from torch.nn.modules.batchnorm import _BatchNorm
-from det3d.core.iou3d import iou3d_utils
-from det3d.core.bbox import box_np_ops, box_torch_ops
 
 from .. import builder
 from ..losses import accuracy
 from ..registry import HEADS
-from det3d.core.sampler import preprocess as prep
-import time
 
 
 def one_hot_f(tensor, depth, dim=-1, on_value=1.0, dtype=torch.float32):
