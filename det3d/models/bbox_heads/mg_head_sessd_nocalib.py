@@ -559,7 +559,7 @@ class MultiGroupHead(nn.Module):
 
         logger.info("Finish MultiGroupHead Initialization")
         # post_center_range = [0, -40.0, -5.0, 70.4, 40.0, 5.0]
-        post_center_range = [-10000.0, -10000.0, -10000.0, 70.4, 40.0, 5.0]
+        post_center_range = [0.0, -10000.0, -10000.0, 70.4, 40.0, 5.0]
         self.post_center_range = torch.tensor(post_center_range,
                                               dtype=torch.float).cuda()
         self.thresh = torch.tensor([0.3], dtype=torch.float).cuda()
