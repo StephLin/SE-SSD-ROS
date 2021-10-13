@@ -42,18 +42,14 @@ class Callback:
     BACK_DETECTION_PUBLISH_TOPIC = '/se_ssd/back_detected_objects'
     CLOUD_PUBLISH_TOPIC = '/se_ssd/cloud'
 
-    detection_pub = rospy.Publisher(DETECTION_PUBLISH_TOPIC,
-                                    BoundingBoxArray,
-                                    queue_size=10)
+    detection_pub = rospy.Publisher(DETECTION_PUBLISH_TOPIC, BoundingBoxArray, queue_size=10)
     front_detection_pub = rospy.Publisher(FRONT_DETECTION_PUBLISH_TOPIC,
                                           BoundingBoxArray,
                                           queue_size=10)
     back_detection_pub = rospy.Publisher(BACK_DETECTION_PUBLISH_TOPIC,
                                          BoundingBoxArray,
                                          queue_size=10)
-    cloud_pub = rospy.Publisher(CLOUD_PUBLISH_TOPIC,
-                                PointCloud2,
-                                queue_size=10)
+    cloud_pub = rospy.Publisher(CLOUD_PUBLISH_TOPIC, PointCloud2, queue_size=10)
 
     def __init__(self,
                  model,
@@ -153,7 +149,15 @@ class Callback:
         cloud[:, 0] = numified_cloud['x']
         cloud[:, 1] = numified_cloud['y']
         cloud[:, 2] = numified_cloud['z']
-        cloud[:, 3] = numified_cloud['i']
+
+        intensity_dtype = ''
+        if 'intensity' in numified_cloud.dtype.names:
+            intensity_dtype = 'intensity'
+        elif 'i' in numified_cloud.dtype.names:
+            intensity_dtype = 'i'
+        else:
+            raise NotImplementedError
+        cloud[:, 3] = numified_cloud[intensity_dtype]
 
         front_points = np.where(cloud[:, 0] > -1)
         back_points = np.where(cloud[:, 0] <= 1)
@@ -197,13 +201,11 @@ class Callback:
         else:
             collated_data = collate_kitti([front_data])
 
-        collated_data = example_to_device(collated_data,
-                                          torch.device(self.device))
+        collated_data = example_to_device(collated_data, torch.device(self.device))
 
         return cloud, collated_data
 
-    def _convert_model_output_to_jsk_bounding_box(self, box, score, label,
-                                                  header):
+    def _convert_model_output_to_jsk_bounding_box(self, box, score, label, header):
         detection = BoundingBox()
         detection.header = header
         detection.pose.position.x = box[0]
@@ -214,7 +216,7 @@ class Callback:
         detection.dimensions.z = box[5]
 
         theta = -(box[6] + np.pi / 2)
-        rot = R.from_rotvec(theta * np.array([0, 0, 1]))    # type: R
+        rot = R.from_rotvec(theta * np.array([0, 0, 1]))  # type: R
         quat = rot.as_quat()
         detection.pose.orientation.x = quat[0]
         detection.pose.orientation.y = quat[1]
@@ -229,12 +231,8 @@ class Callback:
 
 def parse_args():
     parser = argparse.ArgumentParser(description="MegDet test detector")
-    parser.add_argument("--config",
-                        default='config.py',
-                        help="test config file path")
-    parser.add_argument("--checkpoint",
-                        default='se-ssd-model.pth',
-                        help="checkpoint file")
+    parser.add_argument("--config", default='config.py', help="test config file path")
+    parser.add_argument("--checkpoint", default='se-ssd-model.pth', help="checkpoint file")
     parser.add_argument(
         "--launcher",
         choices=["none", "pytorch", "slurm", "mpi"],
@@ -267,14 +265,10 @@ def print_info(args):
     table.add_row('Step size:', str(args.step_size))
     table.add_row('Verbose:', str(args.verbose))
     table.add_row('Subscribed topic (PointCloud2):', args.subscribed_topic)
-    table.add_row('Published topic (BoundingBoxArray):',
-                  Callback.DETECTION_PUBLISH_TOPIC)
-    table.add_row('Published topic (BoundingBoxArray):',
-                  Callback.FRONT_DETECTION_PUBLISH_TOPIC)
-    table.add_row('Published topic (BoundingBoxArray):',
-                  Callback.BACK_DETECTION_PUBLISH_TOPIC)
-    table.add_row('Published topic (PointCloud2):',
-                  Callback.CLOUD_PUBLISH_TOPIC)
+    table.add_row('Published topic (BoundingBoxArray):', Callback.DETECTION_PUBLISH_TOPIC)
+    table.add_row('Published topic (BoundingBoxArray):', Callback.FRONT_DETECTION_PUBLISH_TOPIC)
+    table.add_row('Published topic (BoundingBoxArray):', Callback.BACK_DETECTION_PUBLISH_TOPIC)
+    table.add_row('Published topic (PointCloud2):', Callback.CLOUD_PUBLISH_TOPIC)
 
     panel = Panel(Align(table, align='center'),
                   title='ROS Wrapper for 3D LiDAR Detection',
@@ -290,7 +284,7 @@ def main():
 
     with console.status('[bold green]Loading configuration ...'):
         cfg = torchie.Config.fromfile(args.config)
-        if cfg.get("cudnn_benchmark", False):    # False
+        if cfg.get("cudnn_benchmark", False):  # False
             torch.backends.cudnn.benchmark = True
 
         # cfg.model.pretrained = None
@@ -305,13 +299,9 @@ def main():
             init_dist(args.launcher, **cfg.dist_params)
 
         # build the model and load checkpoint
-        model = build_detector(cfg.model,
-                               train_cfg=None,
-                               test_cfg=cfg.test_cfg)
+        model = build_detector(cfg.model, train_cfg=None, test_cfg=cfg.test_cfg)
         checkpoint_path = os.path.join(cfg.work_dir, args.checkpoint)
-        checkpoint = load_checkpoint(model,
-                                     checkpoint_path,
-                                     map_location="cpu")
+        checkpoint = load_checkpoint(model, checkpoint_path, map_location="cpu")
 
         # old versions did not save class info in checkpoints, this workaround is for backward
         # compatibility
@@ -324,8 +314,8 @@ def main():
         console.log('Loaded configuration successfully.')
 
     with console.status('[bold green]Initializing ROS wrapper ...'):
-        callback = Callback(model, cfg, 'cuda', distributed,
-                            args.range_detection, args.step_size, args.verbose)
+        callback = Callback(model, cfg, 'cuda', distributed, args.range_detection, args.step_size,
+                            args.verbose)
 
         rospy.Subscriber(args.subscribed_topic, PointCloud2, callback)
         console.log('Initialized ROS wrapper successfully.')

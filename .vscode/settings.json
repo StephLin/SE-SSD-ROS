@@ -7,6 +7,7 @@
     "editor.rulers": [100]
   },
   "python.formatting.provider": "yapf",
+  "python.formatting.yapfArgs": ["--style={column_limit: 100}"],
   "cmake.configureOnOpen": false,
   "autoDocstring.docstringFormat": "numpy",
   "python.linting.enabled": true,
