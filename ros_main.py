@@ -33,6 +33,13 @@ with console.status('[bold green]Importing core packages ...'):
     from det3d.torchie.trainer import load_checkpoint
     from det3d.torchie.trainer.trainer import example_to_device
 
+    try:
+        from lio_sam.srv import detection, detectionRequest, detectionResponse
+    except ImportError:
+        detection = None
+        detectionRequest = None
+        detectionResponse = None
+
     console.log('Imported core packages successfully.')
 
 
@@ -58,6 +65,7 @@ class Callback:
                  distributed=False,
                  range_detection=False,
                  step_size=1,
+                 mode='normal',
                  verbose=False):
         self.model = model
         if distributed:
@@ -77,10 +85,19 @@ class Callback:
         self.step = 1
         self.step_size = step_size
 
+        # mode
+        self.mode = mode
+
         # logging
         self.verbose = verbose
 
     def __call__(self, cloud_msg: PointCloud2):
+        if self.mode == 'normal':
+            return self.__normal_callback(cloud_msg)
+        elif self.mode == 'lio_sam':
+            return self.__lio_sam_callback(cloud_msg)
+
+    def __normal_callback(self, cloud_msg: PointCloud2):
         self.step = (self.step + 1) % self.step_size
         if self.step != 0:
             return
@@ -142,6 +159,68 @@ class Callback:
         self.detection_pub.publish(detection_msg)
         self.front_detection_pub.publish(front_detection_msg)
         self.back_detection_pub.publish(back_detection_msg)
+
+    def __lio_sam_callback(self, request: detectionRequest):
+        self.step = (self.step + 1) % self.step_size
+        if self.step != 0:
+            return detectionResponse(detections=BoundingBoxArray())
+
+        cloud_msg = request.cloud
+
+        timer_start = time.perf_counter()
+        cloud, data = self._convert_cloud_to_tensor(cloud_msg)
+
+        if self.verbose:
+            text = 'Received point cloud: %d points'
+            text = text % cloud.shape[0]
+            console.log('[bright_black]%s' % text)
+
+        with torch.no_grad():
+            outputs = self.model(data, return_loss=False, rescale=True)
+            boxes = outputs[0]['box3d_lidar'].detach().cpu().numpy()
+            scores = outputs[0]['scores'].detach().cpu().numpy()
+            labels = outputs[0]['label_preds'].detach().cpu().numpy()
+
+            if self.range_detection:
+                back_boxes = outputs[1]['box3d_lidar'].detach().cpu().numpy()
+                back_scores = outputs[1]['scores'].detach().cpu().numpy()
+                back_labels = outputs[1]['label_preds'].detach().cpu().numpy()
+        timer_end = time.perf_counter()
+
+        detection_msg = BoundingBoxArray()
+        detection_msg.header = cloud_msg.header
+
+        # front detections
+        front_detection_msg = BoundingBoxArray()
+        front_detection_msg.header = cloud_msg.header
+
+        for box, score, label in zip(boxes, scores, labels):
+            detection = self._convert_model_output_to_jsk_bounding_box(
+                box, score, label, front_detection_msg.header)
+
+            detection_msg.boxes.append(detection)
+            front_detection_msg.boxes.append(detection)
+
+        # back detections
+        back_detection_msg = BoundingBoxArray()
+        back_detection_msg.header = cloud_msg.header
+
+        if self.range_detection:
+            for box, score, label in zip(back_boxes, back_scores, back_labels):
+                box[:2] *= -1
+                box[6] += np.pi
+                detection = self._convert_model_output_to_jsk_bounding_box(
+                    box, score, label, back_detection_msg.header)
+
+                detection_msg.boxes.append(detection)
+                back_detection_msg.boxes.append(detection)
+
+        if self.verbose:
+            text = 'Computational time: %.3f; Number of detections: %d'
+            text = text % (timer_end - timer_start, len(detection_msg.boxes))
+            console.log('[bold green]%s' % text)
+
+        return detectionResponse(detections=detection_msg)
 
     def _convert_cloud_to_tensor(self, cloud):
         numified_cloud = ros_numpy.numpify(cloud)
@@ -243,6 +322,9 @@ def parse_args():
     parser.add_argument('--subscribed_topic',
                         default='/kitti/velo/pointcloud',
                         help='ros topic for point cloud')
+    parser.add_argument('--mode',
+                        default='normal',
+                        help="mode of handling message type for ROS I/O")
     parser.add_argument('--range_detection', action='store_true')
     parser.add_argument('--step_size', type=int, default=1)
     parser.add_argument('--verbose', action='store_true')
@@ -264,11 +346,13 @@ def print_info(args):
     table.add_row('Enabled range detection:', str(args.range_detection))
     table.add_row('Step size:', str(args.step_size))
     table.add_row('Verbose:', str(args.verbose))
-    table.add_row('Subscribed topic (PointCloud2):', args.subscribed_topic)
-    table.add_row('Published topic (BoundingBoxArray):', Callback.DETECTION_PUBLISH_TOPIC)
-    table.add_row('Published topic (BoundingBoxArray):', Callback.FRONT_DETECTION_PUBLISH_TOPIC)
-    table.add_row('Published topic (BoundingBoxArray):', Callback.BACK_DETECTION_PUBLISH_TOPIC)
-    table.add_row('Published topic (PointCloud2):', Callback.CLOUD_PUBLISH_TOPIC)
+    table.add_row('Mode:', args.mode)
+    if args.mode == 'normal':
+        table.add_row('Subscribed topic (PointCloud2):', args.subscribed_topic)
+        table.add_row('Published topic (BoundingBoxArray):', Callback.DETECTION_PUBLISH_TOPIC)
+        table.add_row('Published topic (BoundingBoxArray):', Callback.FRONT_DETECTION_PUBLISH_TOPIC)
+        table.add_row('Published topic (BoundingBoxArray):', Callback.BACK_DETECTION_PUBLISH_TOPIC)
+        table.add_row('Published topic (PointCloud2):', Callback.CLOUD_PUBLISH_TOPIC)
 
     panel = Panel(Align(table, align='center'),
                   title='ROS Wrapper for 3D LiDAR Detection',
@@ -315,9 +399,12 @@ def main():
 
     with console.status('[bold green]Initializing ROS wrapper ...'):
         callback = Callback(model, cfg, 'cuda', distributed, args.range_detection, args.step_size,
-                            args.verbose)
+                            args.mode, args.verbose)
 
-        rospy.Subscriber(args.subscribed_topic, PointCloud2, callback)
+        if args.mode == 'normal':
+            rospy.Subscriber(args.subscribed_topic, PointCloud2, callback)
+        elif args.mode == 'lio_sam':
+            rospy.Service('se_ssd', detection, callback)
         console.log('Initialized ROS wrapper successfully.')
 
     console.log('[bold yellow]Start working ...')
