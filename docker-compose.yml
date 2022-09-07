@@ -1,0 +1,19 @@
+version: "3"
+
+services:
+  se-ssd:
+    build: .
+    volumes:
+      - /home/stephlin/Documents/sammot_ws/devel/lib/python2.7/dist-packages/lio_sam:/opt/ros/melodic/lib/python2.7/dist-packages/lio_sam
+      - ./se-ssd-model.pth:/se-ssd/se-ssd-model.pth
+    # command: bash
+    network_mode: host
+    user: "1000:1000"
+    ipc: host
+    tty: true
+    stdin_open: true
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
