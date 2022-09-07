@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
+import sys
 import argparse
 import contextlib as ctx
 import os
 import time
+
+sys.path.append("/opt/ros/melodic/lib/python2.7/dist-packages")
 
 from rich import box as rich_box
 from rich import traceback
@@ -25,7 +28,8 @@ with console.status('[bold green]Importing core packages ...'):
     import ros_numpy
     import rospy
     from jsk_recognition_msgs.msg import BoundingBox, BoundingBoxArray
-    from sensor_msgs.msg import PointCloud2
+    from sensor_msgs.msg import PointCloud2, PointField
+    from std_msgs.msg import Header
 
     from det3d.datasets.pipelines import AssignTarget, Preprocess, Reformat, Voxelization
     from det3d.torchie.apis import init_dist
@@ -41,6 +45,38 @@ with console.status('[bold green]Importing core packages ...'):
         detectionResponse = None
 
     console.log('Imported core packages successfully.')
+
+
+def point_cloud(points, parent_frame="velodyne"):
+    """ Creates a point cloud message.
+    Args:
+        points: Nx4 array of xyz positions (m) and intensities (0..1)
+        parent_frame: frame in which the point cloud is defined
+    Returns:
+        sensor_msgs/PointCloud2 message
+    """
+    ros_dtype = PointField.FLOAT32
+    dtype = np.float32
+    itemsize = np.dtype(dtype).itemsize
+
+    data = points.astype(dtype).tobytes()
+
+    fields = [
+        PointField(name=n, offset=i * itemsize, datatype=ros_dtype, count=1)
+        for i, n in enumerate('xyzi')
+    ]
+
+    header = Header(frame_id=parent_frame, stamp=rospy.Time.now())
+
+    return PointCloud2(header=header,
+                       height=1,
+                       width=points.shape[0],
+                       is_dense=False,
+                       is_bigendian=False,
+                       fields=fields,
+                       point_step=(itemsize * 4),
+                       row_step=(itemsize * 4 * points.shape[0]),
+                       data=data)
 
 
 class Callback:
@@ -307,6 +343,10 @@ class Callback:
 
         return detection
 
+    def warm_up(self):
+        dummy_cloud = point_cloud(np.ones((1, 4)))
+        self.__normal_callback(dummy_cloud)
+
 
 def parse_args():
     parser = argparse.ArgumentParser(description="MegDet test detector")
@@ -406,6 +446,10 @@ def main():
         elif args.mode == 'lio_sam':
             rospy.Service('se_ssd', detection, callback)
         console.log('Initialized ROS wrapper successfully.')
+
+    with console.status('[bold green]Feeding a dummy data to the model ...'):
+        callback.warm_up()
+        console.log('Warmed up successfully.')
 
     console.log('[bold yellow]Start working ...')
     rospy.spin()
