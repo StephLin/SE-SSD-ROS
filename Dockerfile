@@ -19,7 +19,7 @@ WORKDIR /se-ssd
 
 # SE-SSD dependencies
 RUN python3 -m pip install -r requirements.txt && \
-    python3 -m pip install typing-extensions==3.10.0.2 && \
+    python3 -m pip install typing-extensions==4.1.0 && \
     python3 install.py
 
 COPY bashrc /root/.bashrc
