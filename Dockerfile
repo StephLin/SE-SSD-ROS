@@ -1,8 +1,5 @@
 FROM nvcr.io/nvidia/pytorch:20.07-py3
 
-COPY . /se-ssd
-WORKDIR /se-ssd
-
 # ROS Melodic
 RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu bionic main" > /etc/apt/sources.list.d/ros-latest.list' && \
     curl -s https://raw.githubusercontent.com/ros/rosdistro/master/ros.asc | apt-key add - && \
@@ -17,6 +14,8 @@ RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu bionic main" > /etc/apt/
 RUN apt install -y ros-melodic-jsk-recognition-msgs
 
 COPY Caffe2Targets.cmake /opt/conda/lib/python3.6/site-packages/torch/share/cmake/Caffe2/Caffe2Targets.cmake
+COPY . /se-ssd
+WORKDIR /se-ssd
 
 # SE-SSD dependencies
 RUN python3 -m pip install -r requirements.txt && \
