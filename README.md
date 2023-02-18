@@ -4,7 +4,7 @@ A ROS wrapper for [SE-SSD](https://github.com/Vegeta2020/SE-SSD), an accurate an
 
 Original README: [here](./SE-SSD.md)
 
-## Installation
+## Installation (Native)
 
 ### Prerequisites
 
@@ -14,6 +14,7 @@ Original README: [here](./SE-SSD.md)
 4. [jsk_recognition](https://github.com/jsk-ros-pkg/jsk_recognition) `sudo apt install ros-melodic-jsk-recognition-msgs ros-melodic-jsk-rviz-plugins`
 5. Boost `sudo apt install libboost-all-dev`
 6. cmake **3.13.2+**
+7. (Runtime) [LIO-SEGMOT](https://github.com/StephLin/LIO-SEGMOT)
 
 ### 0. CMake 3.13.2+
 
@@ -48,6 +49,31 @@ python3 install.py --cmake_executable=$CMAKE_BIN_PATH/cmake
 
 Once the installation script complete without error, you are ready to start the detection.
 
+## Installation (Docker)
+
+### Prerequisites
+
+1. ROS Melodic (You don't need to re-compile ROS with Python 3)
+2. [Docker](https://www.docker.com/) with [nvidia-docker](https://github.com/NVIDIA/nvidia-docker)
+3. (Runtime) [LIO-SEGMOT](https://github.com/StephLin/LIO-SEGMOT)
+
+### 1. Build with docker-compose
+
+Run the following command to build the SE-SSD image:
+
+```bash
+docker compose build
+```
+
+### 2. Configure [docker-compose.yml](./docker-compose.yml)
+
+You should replace the following path with your local machine's one. For example, if your catkin_ws's location is `/home/alice/catkin_ws`, then you should modify the line as follows:
+
+```diff
+-     - /path/to/catkin_ws/devel/lib/python2.7/dist-packages/lio_sam:/opt/ros/melodic/lib/python2.7/dist-packages/lio_sam
++     - /home/alice/catkin_ws/devel/lib/python2.7/dist-packages/lio_sam:/opt/ros/melodic/lib/python2.7/dist-packages/lio_sam
+```
+
 ## Usage
 
 We provide a single script to launch a LiDAR detection ROS node via
@@ -60,4 +86,10 @@ You can check available arguments via
 
 ```bash
 python3 ros_main.py --help
+```
+
+If you deploy SE-SSD-ROS with docker, you can run the following the command to launch it:
+
+```bash
+docker compose up
 ```

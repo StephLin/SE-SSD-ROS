@@ -4,7 +4,7 @@ services:
   se-ssd:
     build: .
     volumes:
-      - /home/stephlin/Documents/sammot_ws/devel/lib/python2.7/dist-packages/lio_sam:/opt/ros/melodic/lib/python2.7/dist-packages/lio_sam
+      - /path/to/catkin_ws/devel/lib/python2.7/dist-packages/lio_sam:/opt/ros/melodic/lib/python2.7/dist-packages/lio_sam
       - ./se-ssd-model.pth:/se-ssd/se-ssd-model.pth
     # command: bash
     network_mode: host
