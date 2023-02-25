@@ -24,4 +24,4 @@ RUN python3 -m pip install -r requirements.txt && \
 
 COPY bashrc /root/.bashrc
 
-CMD ["bash", "-c", "NUMBAPRO_NVVM=/usr/local/cuda/nvvm/lib64/libnvvm.so NUMBAPRO_LIBDEVICE=/usr/local/cuda/nvvm/libdevice/ python3 ros_main.py --subscribed_topic /lio_sam/keyframe/cloud_info --verbose --mode lio_sam"]
+CMD ["bash", "-c", "NUMBAPRO_NVVM=/usr/local/cuda/nvvm/lib64/libnvvm.so NUMBAPRO_LIBDEVICE=/usr/local/cuda/nvvm/libdevice/ python3 ros_main.py --subscribed_topic /lio_segmot/keyframe/cloud_info --verbose --mode lio_segmot"]
