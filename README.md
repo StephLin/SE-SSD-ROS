@@ -70,8 +70,8 @@ docker compose build
 You should replace the following path with your local machine's one. For example, if your catkin_ws's location is `/home/alice/catkin_ws`, then you should modify the line as follows:
 
 ```diff
--     - /path/to/catkin_ws/devel/lib/python2.7/dist-packages/lio_sam:/opt/ros/melodic/lib/python2.7/dist-packages/lio_sam
-+     - /home/alice/catkin_ws/devel/lib/python2.7/dist-packages/lio_sam:/opt/ros/melodic/lib/python2.7/dist-packages/lio_sam
+-     - /path/to/catkin_ws/devel/lib/python2.7/dist-packages/lio_segmot:/opt/ros/melodic/lib/python2.7/dist-packages/lio_segmot
++     - /home/alice/catkin_ws/devel/lib/python2.7/dist-packages/lio_segmot:/opt/ros/melodic/lib/python2.7/dist-packages/lio_segmot
 ```
 
 ## Usage

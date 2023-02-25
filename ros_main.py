@@ -38,7 +38,7 @@ with console.status('[bold green]Importing core packages ...'):
     from det3d.torchie.trainer.trainer import example_to_device
 
     try:
-        from lio_sam.srv import detection, detectionRequest, detectionResponse
+        from lio_segmot.srv import detection, detectionRequest, detectionResponse
     except ImportError:
         detection = None
         detectionRequest = None
@@ -130,8 +130,8 @@ class Callback:
     def __call__(self, cloud_msg: PointCloud2):
         if self.mode == 'normal':
             return self.__normal_callback(cloud_msg)
-        elif self.mode == 'lio_sam':
-            return self.__lio_sam_callback(cloud_msg)
+        elif self.mode == 'lio_segmot':
+            return self.__lio_segmot_callback(cloud_msg)
 
     def __normal_callback(self, cloud_msg: PointCloud2):
         self.step = (self.step + 1) % self.step_size
@@ -196,7 +196,7 @@ class Callback:
         self.front_detection_pub.publish(front_detection_msg)
         self.back_detection_pub.publish(back_detection_msg)
 
-    def __lio_sam_callback(self, request: detectionRequest):
+    def __lio_segmot_callback(self, request: detectionRequest):
         self.step = (self.step + 1) % self.step_size
         if self.step != 0:
             return detectionResponse(detections=BoundingBoxArray())
@@ -443,8 +443,10 @@ def main():
 
         if args.mode == 'normal':
             rospy.Subscriber(args.subscribed_topic, PointCloud2, callback)
-        elif args.mode == 'lio_sam':
-            rospy.Service('se_ssd', detection, callback)
+        elif args.mode == 'lio_segmot':
+            rospy.Service('lio_segmot_detector', detection, callback)
+        else:
+            raise ValueError('Unknown mode: {}'.format(args.mode))
         console.log('Initialized ROS wrapper successfully.')
 
     with console.status('[bold green]Feeding a dummy data to the model ...'):

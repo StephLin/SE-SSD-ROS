@@ -4,8 +4,9 @@ services:
   se-ssd:
     build: .
     volumes:
-      - /path/to/catkin_ws/devel/lib/python2.7/dist-packages/lio_sam:/opt/ros/melodic/lib/python2.7/dist-packages/lio_sam
+      - /path/to/catkin_ws/devel/lib/python2.7/dist-packages/lio_segmot:/opt/ros/melodic/lib/python2.7/dist-packages/lio_segmot
       - ./se-ssd-model.pth:/se-ssd/se-ssd-model.pth
+      - ./ros_main.py:/se-ssd/ros_main.py
     # command: bash
     network_mode: host
     user: "1000:1000"
