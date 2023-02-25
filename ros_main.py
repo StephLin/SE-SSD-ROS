@@ -444,7 +444,7 @@ def main():
         if args.mode == 'normal':
             rospy.Subscriber(args.subscribed_topic, PointCloud2, callback)
         elif args.mode == 'lio_segmot':
-            rospy.Service('se_ssd', detection, callback)
+            rospy.Service('lio_segmot_detector', detection, callback)
         else:
             raise ValueError('Unknown mode: {}'.format(args.mode))
         console.log('Initialized ROS wrapper successfully.')
