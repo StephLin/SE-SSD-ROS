@@ -76,11 +76,19 @@ You should replace the following path with your local machine's one. For example
 
 ## Usage
 
-We provide a single script to launch a LiDAR detection ROS node via
+We provide a single script to launch a ROS node or a ROS service:
 
-```bash
-python3 ros_main.py
-```
+- Run SE-SSD as a ROS node:
+
+  ```bash
+  python3 ros_main.py
+  ```
+
+- Run SE-SSD as a ROS service (e.g., for **LIO-SEGMOT**):
+
+  ```bash
+  python3 ros_main.py --mode lio_segmot
+  ```
 
 You can check available arguments via
 
