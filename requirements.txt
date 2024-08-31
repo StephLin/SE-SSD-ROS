@@ -7,7 +7,7 @@ fire
 tensorboardX
 protobuf
 opencv-python==4.5.3.56
-opencv-contrib-python==4.5.3.56
+opencv-contrib-python==4.8.1.78
 pybind11
 vtk
 joblib
